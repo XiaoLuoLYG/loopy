@@ -8,9 +8,11 @@ import {
   createA2uiModelInfo,
   createLoopModelInfo,
   createLoopToolRegistry,
+  createSkillSnapshot,
   parseJsonl,
   ReActAgentRunner,
   ScriptedA2uiModel,
+  SkillSnapshot,
   UiRenderHandler
 } from '@loop/agent-core';
 import { A2uiFallbackView } from '../agenui/A2uiFallbackView';
@@ -31,6 +33,7 @@ struct Index {
 
   private scroller: Scroller = new Scroller();
   private conversation: ConversationContext = new ConversationContext();
+  private skillSnapshot: SkillSnapshot | null = null;
   private lastUiTask: string = '';
 
   private getAbilityContext(): common.UIAbilityContext {
@@ -38,8 +41,12 @@ struct Index {
   }
 
   aboutToAppear(): void {
-    createLoopModelInfo(this.getAbilityContext()).then((info) => {
+    const context = this.getAbilityContext();
+    createLoopModelInfo(context).then((info) => {
       this.updateModelStatus(info.mode, info.modelName);
+    });
+    createSkillSnapshot(context).then((snapshot) => {
+      this.skillSnapshot = snapshot;
     });
   }
 
@@ -151,15 +158,20 @@ struct Index {
     let finalAnswer: string | null = null;
 
     try {
-      const modelInfo = await createLoopModelInfo(this.getAbilityContext());
+      const skillSnapshot = this.skillSnapshot ?? await createSkillSnapshot(this.getAbilityContext());
+      this.skillSnapshot = skillSnapshot;
+
+      const modelInfo = await createLoopModelInfo(this.getAbilityContext(), skillSnapshot);
       this.updateModelStatus(modelInfo.mode, modelInfo.modelName);
 
       const uiHandler = await this.buildUiHandler();
       const runner = new ReActAgentRunner(
         modelInfo.model,
-        createLoopToolRegistry(),
+        createLoopToolRegistry(skillSnapshot),
         MAX_STEPS,
-        uiHandler
+        uiHandler,
+        skillSnapshot,
+        modelInfo.mode === 'llm'
       );
 
       await runner.run(task, (event: AgentEvent) => {
@@ -244,6 +256,9 @@ struct Index {
     switch (event.kind) {
       case AgentEventKind.THOUGHT:
         this.appendLine('Loop', event.text);
+        break;
+      case AgentEventKind.SKILL:
+        this.appendLine('Skill', event.text === 'none' ? 'none (continue with tools)' : event.text);
         break;
       case AgentEventKind.ACTION:
         this.appendLine('Tool', event.text);
