@@ -14,3 +14,16 @@ export { A2uiComponentDef, CreateSurfaceBody, UpdateComponentsBody } from './src
 export { A2uiModel } from './src/main/ets/a2ui/A2uiModel';
 export { A2uiAgentRunner, A2uiLineListener, A2uiErrorListener } from './src/main/ets/a2ui/A2uiAgentRunner';
 export { createA2uiModelInfo, A2uiModelInfo } from './src/main/ets/a2ui/A2uiModelFactory';
+export { AgentSkill } from './src/main/ets/skill/AgentSkill';
+export { parseSkillMarkdown } from './src/main/ets/skill/SkillMarkdownParser';
+export { loadSkillsFromContext } from './src/main/ets/skill/SkillLoader';
+export { buildSkillCatalog } from './src/main/ets/skill/SkillCatalog';
+export { matchSkillsForTask } from './src/main/ets/skill/SkillMatcher';
+export { SkillReadTool } from './src/main/ets/skill/SkillReadTool';
+export {
+  SkillSnapshot,
+  createSkillSnapshot,
+  buildSkillsSection,
+  buildReActFormatRules,
+  buildLoopSystemPrompt
+} from './src/main/ets/skill/SkillSnapshot';

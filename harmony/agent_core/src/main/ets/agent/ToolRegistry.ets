@@ -1,4 +1,6 @@
 import { AgentTool } from './AgentTool';
+import { SkillReadTool } from '../skill/SkillReadTool';
+import { SkillSnapshot } from '../skill/SkillSnapshot';
 import { UiTool } from './UiTool';
 
 class NoteTool implements AgentTool {
@@ -59,8 +61,11 @@ export class ToolRegistry {
   }
 }
 
-export function createLoopToolRegistry(): ToolRegistry {
+export function createLoopToolRegistry(skillSnapshot?: SkillSnapshot | null): ToolRegistry {
   const registry = new ToolRegistry();
   registry.register(new UiTool());
+  if (skillSnapshot !== undefined && skillSnapshot !== null && !skillSnapshot.isEmpty()) {
+    registry.register(new SkillReadTool(skillSnapshot));
+  }
   return registry;
 }

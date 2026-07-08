@@ -1,5 +1,7 @@
 import http from '@ohos.net.http';
 import { ChatMessage, ConversationContext } from '../agent/ConversationContext';
+import { buildLoopSystemPrompt, SkillSnapshot } from '../skill/SkillSnapshot';
+import { agentError, agentInfo } from '../util/AgentLog';
 import { LocalModel } from './LocalModel';
 import { LlmProvider } from './LlmProvider';
 
@@ -19,15 +21,19 @@ interface ChatResponse {
 
 export class OpenAiCompatibleModel implements LocalModel {
   private provider: LlmProvider;
+  private skillSnapshot: SkillSnapshot | null;
 
-  constructor(provider: LlmProvider) {
+  constructor(provider: LlmProvider, skillSnapshot?: SkillSnapshot) {
     this.provider = provider;
+    this.skillSnapshot = skillSnapshot ?? null;
   }
 
   async complete(prompt: string, conversation?: ConversationContext): Promise<string> {
     if (!this.provider.isConfigured()) {
       throw new Error('LLM provider is not configured.');
     }
+
+    agentInfo('LLM: request started, promptLen=%{public}s', `${prompt.length}`);
 
     const httpRequest = http.createHttp();
     try {
@@ -50,9 +56,13 @@ export class OpenAiCompatibleModel implements LocalModel {
         throw new Error(`LLM request failed with HTTP ${statusCode}: ${body}`);
       }
 
-      return this.parseContent(body);
+      const content = this.parseContent(body);
+      agentInfo('LLM: request succeeded, responseLen=%{public}s, content=%{public}s',
+        `${content.length}`, content);
+      return content;
     } catch (error) {
       const message = error instanceof Error ? error.message : `${error}`;
+      agentError('LLM: request failed: %{public}s', message);
       throw new Error(`LLM request failed: ${message}`);
     } finally {
       httpRequest.destroy();
@@ -63,7 +73,7 @@ export class OpenAiCompatibleModel implements LocalModel {
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: 'You are Loop, a concise ReAct agent on HarmonyOS. Reply with Thought and either Action: tool[input] or Final: answer. Use only listed tools. Use the ui tool when the user asks to show, display, or visualize something as an on-screen card or form; use Final for plain text replies.'
+        content: buildLoopSystemPrompt(this.skillSnapshot)
       }
     ];
 
